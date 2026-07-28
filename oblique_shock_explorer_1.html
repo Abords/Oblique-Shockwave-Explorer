@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oblique shock wave explorer</title>
+<meta name="description" content="Interactive oblique shock wave calculator and theta-beta-M reference tables for compressible gas dynamics, gamma=1.4.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#e7eef3;
+    --paper:#f4f8fa;
+    --paper-2:#ffffff;
+    --ink:#1b3a57;
+    --ink-soft:#4a6580;
+    --ink-faint:#7f97ab;
+    --grid:rgba(27,58,87,0.10);
+    --line:rgba(27,58,87,0.28);
+    --amber:#c9821d;
+    --amber-dark:#8f5c11;
+    --teal:#1f8a8a;
+    --teal-dark:#125c5c;
+    --brick:#b44b3d;
+    --brick-dark:#7d3529;
+    --font-display:'Space Grotesk', sans-serif;
+    --font-body:'IBM Plex Sans', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0/32px 32px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0/32px 32px,
+      var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    line-height:1.5;
+    min-height:100vh;
+  }
+  .wrap{max-width:1000px;margin:0 auto;padding:40px 24px 80px;}
+
+  header.top{margin-bottom:36px;border-bottom:2px solid var(--line);padding-bottom:24px;}
+  .eyebrow{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--amber-dark);
+    font-weight:600;
+    margin:0 0 10px;
+  }
+  h1{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:clamp(28px,4vw,42px);
+    margin:0 0 12px;
+    letter-spacing:-0.01em;
+  }
+  header.top p{font-size:15px;color:var(--ink-soft);max-width:660px;margin:0;}
+  header.top code{font-family:var(--font-mono);background:rgba(27,58,87,0.07);padding:1px 5px;border-radius:3px;font-size:13px;}
+
+  section{margin-bottom:44px;}
+  .section-label{
+    font-family:var(--font-mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;
+    color:var(--ink-faint);margin:0 0 16px;display:flex;align-items:center;gap:10px;
+  }
+  .section-label::after{content:'';flex:1;height:1px;background:var(--line);}
+
+  /* --- Instrument panel --- */
+  .instrument{
+    display:grid;grid-template-columns:320px 1fr;gap:32px;
+    background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:28px;
+  }
+  @media (max-width:720px){ .instrument{grid-template-columns:1fr;} }
+
+  .wedge-box{display:flex;flex-direction:column;align-items:center;}
+  .wedge-caption{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);margin-top:8px;text-align:center;}
+
+  .controls{display:flex;flex-direction:column;justify-content:center;gap:18px;}
+  .slider-group{display:flex;flex-direction:column;gap:6px;}
+  .slider-label{display:flex;justify-content:space-between;align-items:baseline;}
+  .slider-label .name{font-family:var(--font-mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.08em;}
+  .slider-label .val{font-family:var(--font-display);font-weight:700;font-size:22px;color:var(--ink);}
+  .slider-label .val small{font-family:var(--font-mono);font-size:12px;color:var(--ink-faint);font-weight:400;}
+
+  input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:4px;background:var(--line);border-radius:2px;outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--amber);border:2px solid var(--paper-2);box-shadow:0 0 0 1px var(--line);cursor:pointer;}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--amber);border:2px solid var(--paper-2);box-shadow:0 0 0 1px var(--line);cursor:pointer;}
+  #betaSlider::-webkit-slider-thumb{background:var(--teal);}
+  #betaSlider::-moz-range-thumb{background:var(--teal);}
+
+  .warn{
+    font-family:var(--font-mono);font-size:11.5px;color:var(--brick-dark);
+    background:rgba(180,75,61,0.09);border:1px solid rgba(180,75,61,0.3);
+    border-radius:4px;padding:6px 10px;display:none;
+  }
+  .warn.show{display:block;}
+
+  .stat-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .stat{background:var(--paper-2);border:1px solid var(--line);border-radius:4px;padding:9px 11px;}
+  .stat .k{font-family:var(--font-mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;}
+  .stat .v{font-family:var(--font-mono);font-size:17px;font-weight:500;margin-top:3px;}
+  .stat.theta .k,.stat.theta .v{color:var(--amber-dark);}
+  .stat.m2 .k,.stat.m2 .v{color:var(--teal-dark);}
+  .stat.p .k,.stat.p .v{color:var(--brick-dark);}
+  .stat.rho .k,.stat.rho .v{color:var(--brick-dark);}
+  .stat.t .k,.stat.t .v{color:var(--teal-dark);}
+  .stat.p0 .k,.stat.p0 .v{color:var(--amber-dark);}
+
+  /* --- Chart --- */
+  .chart-panel{background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:24px 24px 12px;}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-family:var(--font-mono);font-size:12px;color:var(--ink-soft);margin-bottom:8px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .swatch{width:12px;height:3px;display:inline-block;border-radius:1px;}
+
+  /* --- Table --- */
+  .table-tools{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;}
+  .table-tools .hint{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);}
+  button.dl{
+    font-family:var(--font-mono);font-size:12px;font-weight:500;
+    background:var(--ink);color:var(--paper-2);border:none;border-radius:4px;
+    padding:8px 14px;cursor:pointer;letter-spacing:0.02em;
+  }
+  button.dl:hover{background:var(--amber-dark);}
+
+  .table-scroll{max-height:420px;overflow-y:auto;border:1.5px solid var(--line);border-radius:6px;background:var(--paper-2);}
+  table{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:12.5px;}
+  thead th{position:sticky;top:0;background:var(--ink);color:var(--paper-2);text-align:right;padding:9px 12px;font-weight:500;white-space:nowrap;}
+  thead th:first-child{text-align:left;}
+  tbody td{text-align:right;padding:6px 12px;border-bottom:1px solid var(--grid);color:var(--ink-soft);}
+  tbody td:first-child{text-align:left;color:var(--ink);font-weight:500;}
+  tbody tr:hover{background:rgba(201,130,29,0.08);cursor:pointer;}
+  tbody tr.active{background:rgba(201,130,29,0.18);}
+  tbody tr.active td:first-child{color:var(--amber-dark);font-weight:600;}
+
+  footer{margin-top:40px;padding-top:20px;border-top:1.5px solid var(--line);font-family:var(--font-mono);font-size:12px;color:var(--ink-faint);}
+  footer p{margin:4px 0;}
+
+  .prop-heading{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;}
+  .prop-heading h2{font-family:var(--font-display);font-size:19px;font-weight:600;margin:0;}
+  .prop-heading .formula{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-faint);}
+  .prop-sub{font-size:13px;color:var(--ink-soft);margin:0 0 16px;}
+
+  .matrix-scroll{max-height:520px;overflow:auto;border:1.5px solid var(--line);border-radius:6px;background:var(--paper-2);}
+  table.matrix{border-collapse:collapse;font-family:var(--font-mono);font-size:11.5px;white-space:nowrap;}
+  table.matrix th, table.matrix td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--grid);border-right:1px solid var(--grid);}
+  table.matrix thead th{position:sticky;top:0;background:var(--ink);color:var(--paper-2);z-index:2;font-weight:500;}
+  table.matrix tbody th{position:sticky;left:0;background:var(--ink);color:var(--paper-2);z-index:1;font-weight:500;text-align:left;}
+  table.matrix thead th:first-child{position:sticky;left:0;top:0;z-index:3;background:var(--ink);text-align:left;}
+  table.matrix td.na{color:var(--ink-faint);opacity:0.5;}
+  table.matrix td.hit{outline:2px solid var(--amber);outline-offset:-2px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">Compressible flow reference · γ = 1.4</p>
+    <h1>Oblique shock wave explorer</h1>
+    <p>Set the upstream Mach number <code>M₁</code> and shock angle <code>β</code> to see the flow deflection <code>θ</code>, downstream Mach number <code>M₂</code>, and the jump in pressure, density and temperature across the shock — the θ–β–M relation for a calorically perfect gas.</p>
+  </header>
+
+  <section>
+    <p class="section-label">Wedge diagram</p>
+    <div class="instrument">
+      <div class="wedge-box">
+        <svg id="wedge" viewBox="0 0 280 200" width="100%" height="auto"></svg>
+        <p class="wedge-caption" id="wedgeCaption">Flow at M₁ meets the shock at angle β and deflects by θ.</p>
+      </div>
+      <div class="controls">
+        <div class="slider-group">
+          <div class="slider-label"><span class="name">M₁ (upstream Mach)</span><span class="val" id="m1Value">2.00</span></div>
+          <input type="range" id="m1Slider" min="1.05" max="8" step="0.01" value="2.0">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span class="name">β (shock angle)</span><span class="val" id="betaValue">40.0<small>deg</small></span></div>
+          <input type="range" id="betaSlider" min="0" max="90" step="0.1" value="40">
+          <div class="warn" id="detachWarn">β is below the Mach angle μ for this M₁ — no attached shock exists here.</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat theta"><div class="k">θ (deg)</div><div class="v" id="thetaVal">—</div></div>
+          <div class="stat m2"><div class="k">M₂</div><div class="v" id="m2Val">—</div></div>
+          <div class="stat p"><div class="k">p₂/p₁</div><div class="v" id="pVal">—</div></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat rho"><div class="k">ρ₂/ρ₁</div><div class="v" id="rhoVal">—</div></div>
+          <div class="stat t"><div class="k">T₂/T₁</div><div class="v" id="tVal">—</div></div>
+          <div class="stat p0"><div class="k">p₀₂/p₀₁</div><div class="v" id="p0Val">—</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="propertySections"></div>
+
+  <section>
+    <p class="section-label">Reference matrix tables &mdash; &theta; (1&ndash;30&deg;) &times; &theta;_w (24&ndash;66&deg;)</p>
+    <p class="prop-sub">Classic tabular form: deflection angle &theta; down the rows, wave (shock) angle &theta;_w across the columns. Blank/faded cells mean that combination has no physical solution. Computed for &gamma;=1.4 using the same closed-form relations as the reference script.</p>
+    <div id="matrixSections"></div>
+  </section>
+
+  <footer>
+    <p>tan θ = 2·cotβ·(M₁²sin²β − 1) / (M₁²(γ + cos2β) + 2)</p>
+    <p>M₁ₙ = M₁sinβ · M₂ = M₂ₙ/sin(β−θ) · p₂/p₁ = 1 + (2γ/(γ+1))(M₁ₙ²−1) · ρ₂/ρ₁ = (γ+1)M₁ₙ²/((γ−1)M₁ₙ²+2), with γ = 1.4.</p>
+  </footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const GAMMA = 1.4;
+
+function muDeg(M1){ return Math.asin(1/M1) * 180/Math.PI; }
+
+function thetaFromBeta(M1, betaDeg){
+  const beta = betaDeg * Math.PI/180;
+  const M1n2 = Math.pow(M1*Math.sin(beta),2);
+  const num = 2 * (1/Math.tan(beta)) * (M1n2 - 1);
+  const den = M1*M1*(GAMMA + Math.cos(2*beta)) + 2;
+  return Math.atan(num/den) * 180/Math.PI;
+}
+
+function shockProps(M1, betaDeg){
+  const beta = betaDeg*Math.PI/180;
+  const theta = thetaFromBeta(M1, betaDeg);
+  const M1n = M1*Math.sin(beta);
+  const M1n2 = M1n*M1n;
+  const M2n2 = (1 + ((GAMMA-1)/2)*M1n2) / (GAMMA*M1n2 - (GAMMA-1)/2);
+  const M2n = Math.sqrt(M2n2);
+  const thetaRad = theta*Math.PI/180;
+  const M2 = M2n / Math.sin(beta - thetaRad);
+  const p2p1 = 1 + (2*GAMMA/(GAMMA+1))*(M1n2-1);
+  const rho2rho1 = ((GAMMA+1)*M1n2) / ((GAMMA-1)*M1n2+2);
+  const T2T1 = p2p1/rho2rho1;
+  const p02p01 = Math.pow(rho2rho1, GAMMA/(GAMMA-1)) * Math.pow((GAMMA+1)/(2*GAMMA*M1n2-(GAMMA-1)), 1/(GAMMA-1));
+  return {theta, M1n, M2, p2p1, rho2rho1, T2T1, p02p01};
+}
+
+// ---- reference curves for the chart ----
+const M_LIST = [1.2,1.5,2,2.5,3,4,5,7,10];
+const refCurves = {};
+M_LIST.forEach(M=>{
+  const mu0 = muDeg(M);
+  const pts = [];
+  for(let b=mu0+0.05; b<=89.95; b+=0.25){
+    pts.push({x: thetaFromBeta(M,b), y:b});
+  }
+  refCurves[M] = pts;
+});
+
+// ---- wedge diagram ----
+const wedge = document.getElementById('wedge');
+function drawWedge(betaDeg, thetaDeg, valid){
+  const originX = 60, originY = 100;
+  const inflowLen = 55;
+  const shockLen = 150;
+  const outLen = 130;
+
+  const betaRad = betaDeg*Math.PI/180;
+  const thetaRad = thetaDeg*Math.PI/180;
+
+  // incoming flow (horizontal arrow into origin)
+  const inX1 = originX - inflowLen, inY1 = originY;
+
+  // shock line at angle beta from the horizontal (flow direction)
+  const shockX = originX + shockLen*Math.cos(betaRad);
+  const shockY = originY - shockLen*Math.sin(betaRad);
+
+  // deflected flow line, bending by theta below the shock
+  const outX = originX + outLen*Math.cos(thetaRad);
+  const outY = originY - outLen*Math.sin(thetaRad);
+
+  const arcR = 26;
+  let arcPath = '';
+  const steps = 20;
+  for(let i=0;i<=steps;i++){
+    const t = thetaDeg*i/steps;
+    const tr = t*Math.PI/180;
+    const x = originX+arcR*Math.cos(tr), y = originY-arcR*Math.sin(tr);
+    arcPath += (i===0?'M ':'L ') + x.toFixed(1) + ' ' + y.toFixed(1) + ' ';
+  }
+
+  const shockColor = valid ? '#1f8a8a' : '#b44b3d';
+
+  wedge.innerHTML = `
+    <line x1="0" y1="${originY}" x2="280" y2="${originY}" stroke="#1b3a57" stroke-width="1" opacity="0.15"/>
+    <line x1="${inX1}" y1="${inY1}" x2="${originX}" y2="${originY}" stroke="#1b3a57" stroke-width="2"/>
+    <polygon points="${originX},${originY} ${originX-8},${originY-4} ${originX-8},${originY+4}" fill="#1b3a57"/>
+    <line x1="${originX}" y1="${originY}" x2="${shockX.toFixed(1)}" y2="${shockY.toFixed(1)}" stroke="${shockColor}" stroke-width="2.5"/>
+    <line x1="${originX}" y1="${originY}" x2="${outX.toFixed(1)}" y2="${outY.toFixed(1)}" stroke="#c9821d" stroke-width="2.5"/>
+    <polygon points="${outX.toFixed(1)},${outY.toFixed(1)} ${(outX-9*Math.cos(thetaRad-0.25)).toFixed(1)},${(outY+9*Math.sin(thetaRad-0.25)).toFixed(1)} ${(outX-9*Math.cos(thetaRad+0.25)).toFixed(1)},${(outY+9*Math.sin(thetaRad+0.25)).toFixed(1)}" fill="#c9821d"/>
+    <path d="${arcPath}" fill="none" stroke="#c9821d" stroke-width="1.4" opacity="0.7"/>
+    <text x="${originX+34}" y="${originY-8}" font-family="IBM Plex Mono" font-size="11" fill="#8f5c11">θ</text>
+    <text x="${(inX1+originX)/2}" y="${originY+16}" font-family="IBM Plex Mono" font-size="10" fill="#4a6580" text-anchor="middle">M₁</text>
+    <text x="${(originX+shockX)/2+8}" y="${(originY+shockY)/2-4}" font-family="IBM Plex Mono" font-size="10" fill="${shockColor}">β</text>
+    <text x="${(originX+outX)/2+8}" y="${(originY+outY)/2+12}" font-family="IBM Plex Mono" font-size="10" fill="#8f5c11">M₂</text>
+  `;
+}
+
+const m1Slider = document.getElementById('m1Slider');
+const betaSlider = document.getElementById('betaSlider');
+const m1Value = document.getElementById('m1Value');
+const betaValue = document.getElementById('betaValue');
+const detachWarn = document.getElementById('detachWarn');
+const thetaVal = document.getElementById('thetaVal');
+const m2Val = document.getElementById('m2Val');
+const pVal = document.getElementById('pVal');
+const rhoVal = document.getElementById('rhoVal');
+const tVal = document.getElementById('tVal');
+const p0Val = document.getElementById('p0Val');
+
+// ---- five properties, each gets its own chart-vs-beta and its own table ----
+const PROPERTIES = [
+  {key:'M2',       title:'Downstream Mach number',      formula:'M\u2082 = M\u2082\u2099 / sin(\u03b2\u2212\u03b8)',                                    decimals:3, accent:'#1f8a8a', yLabel:'M\u2082'},
+  {key:'p2p1',     title:'Static pressure ratio',        formula:'p\u2082/p\u2081 = 1 + (2\u03b3/(\u03b3+1))(M\u2081\u2099\u00b2\u22121)',                       decimals:3, accent:'#b44b3d', yLabel:'p\u2082/p\u2081'},
+  {key:'rho2rho1', title:'Density ratio',                 formula:'\u03c1\u2082/\u03c1\u2081 = (\u03b3+1)M\u2081\u2099\u00b2 / ((\u03b3\u22121)M\u2081\u2099\u00b2+2)',              decimals:3, accent:'#c9821d', yLabel:'\u03c1\u2082/\u03c1\u2081'},
+  {key:'T2T1',     title:'Temperature ratio',             formula:'T\u2082/T\u2081 = (p\u2082/p\u2081) / (\u03c1\u2082/\u03c1\u2081)',                                 decimals:3, accent:'#1f8a8a', yLabel:'T\u2082/T\u2081'},
+  {key:'p02p01',   title:'Stagnation pressure ratio',     formula:'p\u2080\u2082/p\u2080\u2081 (normal-shock loss on M\u2081\u2099)',                       decimals:4, accent:'#b44b3d', yLabel:'p\u2080\u2082/p\u2080\u2081'}
+];
+
+// precompute reference curves per property per M1
+const propRefCurves = {};
+PROPERTIES.forEach(p=>{
+  propRefCurves[p.key] = {};
+  M_LIST.forEach(M=>{
+    const mu0 = muDeg(M);
+    const pts = [];
+    for(let b=mu0+0.05; b<=89.95; b+=0.5){
+      const props = shockProps(M,b);
+      const v = props[p.key];
+      if(!isNaN(v) && isFinite(v)) pts.push({x:b, y:v});
+    }
+    propRefCurves[p.key][M] = pts;
+  });
+});
+
+// build DOM for each property section
+const container = document.getElementById('propertySections');
+PROPERTIES.forEach((p,idx)=>{
+  const section = document.createElement('section');
+  section.innerHTML = `
+    <p class="section-label">${idx+1} / 5 &mdash; ${p.title}</p>
+    <div class="chart-panel">
+      <div class="prop-heading"><h2>${p.yLabel} vs &beta;</h2><span class="formula">${p.formula}</span></div>
+      <p class="prop-sub">Grey lines are reference M&#8321; curves; the highlighted line is your current M&#8321;.</p>
+      <div class="legend">
+        <span><span class="swatch" style="background:#c9c3b6;"></span>reference M&#8321; curves</span>
+        <span><span class="swatch" style="background:${p.accent};height:3px;"></span>current M&#8321; curve</span>
+        <span><span class="swatch" style="background:${p.accent};width:8px;height:8px;border-radius:50%;"></span>current (&beta;, ${p.yLabel})</span>
+      </div>
+      <div style="position:relative;height:300px;">
+        <canvas id="chart-${p.key}"></canvas>
+      </div>
+    </div>
+    <div style="height:16px;"></div>
+    <div class="table-tools">
+      <span class="hint">${p.yLabel} swept over &beta; for the current M&#8321; &mdash; click a row to set &beta;</span>
+      <button class="dl" id="dl-${p.key}">Download CSV</button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>&beta; (deg)</th><th>${p.yLabel}</th></tr></thead>
+        <tbody id="table-${p.key}"></tbody>
+      </table>
+    </div>
+  `;
+  container.appendChild(section);
+});
+
+const charts = {};
+PROPERTIES.forEach(p=>{
+  const datasets = M_LIST.map(M=>({
+    label:'M='+M, data:propRefCurves[p.key][M],
+    borderColor:'rgba(27,58,87,0.28)', backgroundColor:'transparent',
+    borderWidth:1, pointRadius:0, tension:0.15
+  }));
+  datasets.push({label:'current M1', data:[], borderColor:p.accent, backgroundColor:'transparent', borderWidth:2.5, pointRadius:0, tension:0.15});
+  datasets.push({label:'operating point', data:[], borderColor:p.accent, backgroundColor:p.accent, pointRadius:6, pointHoverRadius:7, showLine:false});
+  charts[p.key] = new Chart(document.getElementById('chart-'+p.key), {
+    type:'line',
+    data:{datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false, parsing:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:(item)=>`\u03b2=${item.raw.x.toFixed(2)}\u00b0, ${p.yLabel}=${item.raw.y.toFixed(p.decimals)}`}}
+      },
+      scales:{
+        x:{type:'linear', title:{display:true,text:'\u03b2, shock angle (deg)'}, min:0, max:90},
+        y:{type:'linear', title:{display:true,text:p.yLabel}}
+      }
+    }
+  });
+});
+
+function updatePropertyCurve(key, M1){
+  const mu0 = muDeg(M1);
+  const pts = [];
+  for(let b=mu0+0.05; b<=89.95; b+=0.5){
+    const props = shockProps(M1,b);
+    const v = props[key];
+    if(!isNaN(v) && isFinite(v)) pts.push({x:b, y:v});
+  }
+  charts[key].data.datasets[M_LIST.length].data = pts;
+}
+
+window._propTableData = {};
+let lastTableM1 = null;
+function renderAllTables(M1){
+  if(lastTableM1 === M1) return;
+  lastTableM1 = M1;
+  const mu0 = muDeg(M1);
+  PROPERTIES.forEach(p=>{
+    const body = document.getElementById('table-'+p.key);
+    let rows = '';
+    const data = [];
+    for(let b=Math.ceil(mu0*2)/2; b<=90; b+=0.5){
+      const props = shockProps(M1,b);
+      const v = props[p.key];
+      if(isNaN(v) || !isFinite(v) || props.theta < 0) continue;
+      data.push([b, v]);
+      rows += `<tr data-beta="${b}"><td>${b.toFixed(1)}</td><td>${v.toFixed(p.decimals)}</td></tr>`;
+    }
+    body.innerHTML = rows;
+    window._propTableData[p.key] = data;
+    body.querySelectorAll('tr').forEach(tr=>{
+      tr.addEventListener('click', ()=>{ betaSlider.value = tr.dataset.beta; update(); });
+    });
+  });
+}
+
+function highlightAllRows(beta){
+  PROPERTIES.forEach(p=>{
+    document.querySelectorAll('#table-'+p.key+' tr').forEach(tr=>{
+      tr.classList.toggle('active', Math.abs(parseFloat(tr.dataset.beta)-beta) < 0.26);
+    });
+  });
+}
+
+PROPERTIES.forEach(p=>{
+  document.getElementById('dl-'+p.key).addEventListener('click', ()=>{
+    const M1 = parseFloat(m1Slider.value);
+    let csv = `M1=${M1.toFixed(3)}\nbeta_deg,${p.key}\n`;
+    (window._propTableData[p.key]||[]).forEach(r=> csv += `${r[0].toFixed(1)},${r[1].toFixed(p.decimals)}\n`);
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `oblique_shock_${p.key}_M${M1.toFixed(2)}.csv`;
+    a.click();
+  });
+});
+
+function update(){
+  const M1 = parseFloat(m1Slider.value);
+  let beta = parseFloat(betaSlider.value);
+  const mu0 = muDeg(M1);
+  betaSlider.min = mu0.toFixed(1);
+  if(beta < mu0){ beta = mu0; betaSlider.value = beta; }
+
+  m1Value.textContent = M1.toFixed(2);
+  betaValue.innerHTML = beta.toFixed(1) + '<small>deg</small>';
+
+  const props = shockProps(M1, beta);
+  const valid = props.theta >= -0.001 && !isNaN(props.M2);
+
+  detachWarn.classList.toggle('show', !valid);
+
+  if(valid){
+    thetaVal.textContent = props.theta.toFixed(2);
+    m2Val.textContent = props.M2.toFixed(3);
+    pVal.textContent = props.p2p1.toFixed(3);
+    rhoVal.textContent = props.rho2rho1.toFixed(3);
+    tVal.textContent = props.T2T1.toFixed(3);
+    p0Val.textContent = props.p02p01.toFixed(4);
+  } else {
+    thetaVal.textContent = m2Val.textContent = pVal.textContent = rhoVal.textContent = tVal.textContent = p0Val.textContent = '—';
+  }
+
+  drawWedge(beta, Math.max(props.theta,0), valid);
+
+  PROPERTIES.forEach(p=>{
+    updatePropertyCurve(p.key, M1);
+    const v = props[p.key];
+    charts[p.key].data.datasets[M_LIST.length+1].data = (valid && !isNaN(v) && isFinite(v)) ? [{x:beta, y:v}] : [];
+    charts[p.key].update('none');
+  });
+
+  renderAllTables(M1);
+  highlightAllRows(beta);
+}
+
+m1Slider.addEventListener('input', ()=>{ lastTableM1=null; update(); });
+betaSlider.addEventListener('input', update);
+
+update();
+
+// ---- classic matrix reference tables (theta x theta_w), matching the provided script exactly ----
+const THETA_W_RANGE = []; for(let tw=24; tw<=66; tw++) THETA_W_RANGE.push(tw);
+const THETA_RANGE = []; for(let t=1; t<=30; t++) THETA_RANGE.push(t);
+
+function matrixCell(theta, theta_w){
+  const rad_tw = theta_w*Math.PI/180;
+  const rad_diff = (theta_w-theta)*Math.PI/180;
+  const tanDiff = Math.tan(rad_diff);
+  if(tanDiff === 0) return {rho:null, m1:null, m2:null, p:null};
+  const rho = Math.tan(rad_tw)/tanDiff;
+  let m1 = null, m2 = null, p = null;
+  const m1_inside = (5*rho)/(6-rho);
+  if(!(m1_inside < 0) && Math.sin(rad_tw) !== 0) m1 = Math.sqrt(m1_inside)/Math.sin(rad_tw);
+  const m2_inside = 5/(6*rho-1);
+  if(!(m2_inside < 0) && Math.sin(rad_diff) !== 0) m2 = Math.sqrt(m2_inside)/Math.sin(rad_diff);
+  p = (6*rho-1)/(6-rho);
+  return {rho, m1, m2, p};
+}
+
+// precompute the full grid once
+const MATRIX = THETA_RANGE.map(theta => THETA_W_RANGE.map(theta_w => matrixCell(theta, theta_w)));
+
+const MATRIX_TABLES = [
+  {key:'rho', title:'Table 3-1 \u2014 Density ratio (\u03c1\u2082/\u03c1\u2081)', decimals:4, accent:'201,130,29', csvName:'Table_3-1_Density_Ratio.csv'},
+  {key:'m1',  title:'Table 3-2 \u2014 M\u2081',                                decimals:4, accent:'31,138,138',  csvName:'Table_3-2_M1.csv'},
+  {key:'m2',  title:'Table 3-3 \u2014 M\u2082',                                decimals:4, accent:'180,75,61',   csvName:'Table_3-3_M2.csv'},
+  {key:'p',   title:'Table 3-4 \u2014 Pressure ratio (p\u2082/p\u2081)',        decimals:4, accent:'27,58,87',   csvName:'Table_3-4_Pressure_Ratio.csv'}
+];
+
+const matrixContainer = document.getElementById('matrixSections');
+
+MATRIX_TABLES.forEach(mt=>{
+  // min/max for light heat-map shading
+  let vals = [];
+  MATRIX.forEach(row => row.forEach(c => { if(c[mt.key] !== null && isFinite(c[mt.key])) vals.push(c[mt.key]); }));
+  const vmin = Math.min(...vals), vmax = Math.max(...vals);
+
+  const wrap = document.createElement('div');
+  wrap.style.marginBottom = '32px';
+
+  let headerRow = '<tr><th>&theta; \\ &theta;_w</th>' + THETA_W_RANGE.map(tw=>`<th>${tw}</th>`).join('') + '</tr>';
+  let bodyRows = THETA_RANGE.map((theta,ri) => {
+    let cells = THETA_W_RANGE.map((tw,ci) => {
+      const v = MATRIX[ri][ci][mt.key];
+      if(v === null || !isFinite(v)) return `<td class="na" data-theta="${theta}" data-tw="${tw}">&mdash;</td>`;
+      const t = vmax>vmin ? (v-vmin)/(vmax-vmin) : 0;
+      const alpha = (0.06 + 0.28*t).toFixed(3);
+      return `<td style="background:rgba(${mt.accent},${alpha})" data-theta="${theta}" data-tw="${tw}" data-v="${v}">${v.toFixed(mt.decimals)}</td>`;
+    }).join('');
+    return `<tr><th>${theta}</th>${cells}</tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div class="table-tools">
+      <span class="hint" style="font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--ink);text-transform:none;letter-spacing:0;">${mt.title}</span>
+      <button class="dl" id="dl-matrix-${mt.key}">Download CSV</button>
+    </div>
+    <div class="matrix-scroll">
+      <table class="matrix">
+        <thead>${headerRow}</thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+    </div>
+  `;
+  matrixContainer.appendChild(wrap);
+
+  document.getElementById('dl-matrix-'+mt.key).addEventListener('click', ()=>{
+    let csv = ['theta \\\\ theta_w', ...THETA_W_RANGE].join(',') + '\n';
+    THETA_RANGE.forEach((theta,ri)=>{
+      const row = [theta, ...THETA_W_RANGE.map((tw,ci)=>{
+        const v = MATRIX[ri][ci][mt.key];
+        return (v===null || !isFinite(v)) ? 'N/A' : v.toFixed(mt.decimals);
+      })];
+      csv += row.join(',') + '\n';
+    });
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = mt.csvName;
+    a.click();
+  });
+});
+</script>
+</body>
+</html>
